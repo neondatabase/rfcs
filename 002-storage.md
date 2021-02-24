@@ -1,32 +1,3 @@
-# Storage fleet
-
-# **Storage fleet**
-
-- When database is smaller then a chunk size we naturally can store them in one chunk (since their page_key would fit in some chunk's [hi, lo) range).
-
-<img width="937" alt="Screenshot_2021-02-22_at_16 49 17" src="https://user-images.githubusercontent.com/284219/108729836-ffcbd200-753b-11eb-9412-db802ec30021.png">
-
-Few databases are stored in one chunk, replicated three times
-
-- When database can't fit into one storage node it can occupy lots of chunks that were split while database was growing. Chunk placement on nodes is controlled by us with some automatization, but we alway may manually move chunks around the cluster.
-
-<img width="940" alt="Screenshot_2021-02-22_at_16 49 10" src="https://user-images.githubusercontent.com/284219/108729815-fb071e00-753b-11eb-86e0-be6703e47d82.png">
-
-Here one big database occupies two set of nodes. Also some chunks were moved around to restore replication factor after disk failure. In this case we also have "sharded" storage for a big database and issue wal writes to different chunks in parallel.
-
-## **Chunk placement strategies**
-
-There are few scenarios where we may want to move chunks around the cluster:
-
-- disk usage on some node is big
-- some disk experienced a failure
-- some node experienced a failure or need maintenance
-
-## **Chunk replication**
-
-Chunk replication may be done by cloning page ranges with respect to some lsn from peer nodes, updating global metadata, waiting for WAL to come, replaying previous WAL and becoming online -- more or less like during chunk split.
-
-
 # Zenith storage node — alternative
 
 ## **Design considerations**
@@ -184,3 +155,32 @@ So how to implement chunk's lsm?
 Other possibility is to not to try to fit few databases in one storage node. But that way it is no go for multi-tenant cloud installation: we would need to run a lot of storage node instances on one physical storage node, all with it own local page cache. So that would be much closer to ordinary managed RDS.
 
 Multi-tenant storage makes sense even on a laptop, when you work with different databases, running tests with temp database, etc. And when installation grows bigger it start to make more and more sense, so it seems important.
+
+# Storage fleet
+
+# **Storage fleet**
+
+- When database is smaller then a chunk size we naturally can store them in one chunk (since their page_key would fit in some chunk's [hi, lo) range).
+
+<img width="937" alt="Screenshot_2021-02-22_at_16 49 17" src="https://user-images.githubusercontent.com/284219/108729836-ffcbd200-753b-11eb-9412-db802ec30021.png">
+
+Few databases are stored in one chunk, replicated three times
+
+- When database can't fit into one storage node it can occupy lots of chunks that were split while database was growing. Chunk placement on nodes is controlled by us with some automatization, but we alway may manually move chunks around the cluster.
+
+<img width="940" alt="Screenshot_2021-02-22_at_16 49 10" src="https://user-images.githubusercontent.com/284219/108729815-fb071e00-753b-11eb-86e0-be6703e47d82.png">
+
+Here one big database occupies two set of nodes. Also some chunks were moved around to restore replication factor after disk failure. In this case we also have "sharded" storage for a big database and issue wal writes to different chunks in parallel.
+
+## **Chunk placement strategies**
+
+There are few scenarios where we may want to move chunks around the cluster:
+
+- disk usage on some node is big
+- some disk experienced a failure
+- some node experienced a failure or need maintenance
+
+## **Chunk replication**
+
+Chunk replication may be done by cloning page ranges with respect to some lsn from peer nodes, updating global metadata, waiting for WAL to come, replaying previous WAL and becoming online -- more or less like during chunk split.
+
