@@ -1,14 +1,14 @@
 # Command line interface (end-user)
 
-Zenith CLI as it is described here mostly resides on the same conceptual level as pg_ctl/initdb/pg_recvxlog/etc and replaces some of them in an opionated way. I would also suggest to bundle our patched postgres inside zenith distribution at least on the start.
+Zenith CLI as it is described here mostly resides on the same conceptual level as pg_ctl/initdb/pg_recvxlog/etc and replaces some of them in an opinionated way. I would also suggest bundling our patched postgres inside zenith distribution at least at the start.
 
-Most important concept here is a snapshot, which can be created/moved/sent/exported. Also we may start temporary read only postgres instanse over any local snapshot. More complex scenarious would consist of several basic operations over snapshots.
+The most important concept here is a snapshot, which can be created/moved/sent/exported. Also, we may start temporary read only postgres instance over any local snapshot. A more complex scenarios would consist of several basic operations over snapshots.
 
 ## storage
 
-Storage is either pagestore or s3. User may create a database in a pagestore and create/move *snapshots* and *pirt regions* in both pagestore and s3. Storage is a concept similar to `git remote`. After installation I imagine two storages are available by default: local pagestore and zenith cloud pagestore.
+Storage is either pagestore or s3. Users may create a database in a pagestore and create/move *snapshots* and *pitr regions* in both pagestore and s3. Storage is a concept similar to `git remote`. After installation, I imagine two storages are available by default: local pagestore and zenith cloud pagestore.
 
-XXX: is there any better ideas on how to call pagestore? may be just zenith? zenith-smgr?
+XXX: is there any better ideas on how to call pagestore? maybe just zenith? zenith-smgr?
 
 **zenith storage attach** -t [pagestore|s3] -c key=value -n name
 
@@ -40,13 +40,13 @@ Pg is a term for a single postgres running on some data. I'm trying to avoid her
 
 **zenith pg create** [--no-start --snapshot --cow] -s storage-name -n pgdata
 
-Creates (initializes) new data directory in a given storage and starts postgres. I imagine that storage for this operation may be only local pagestore and data movement to remote location happens through snapshots/pirt.
+Creates (initializes) new data directory in given storage and starts postgres. I imagine that storage for this operation may be only local pagestore and data movement to remote location happens through snapshots/pitr.
 
 --no-start: just init datadir without creating 
 
---snapshot snap: init from snapshot. Snap is a name or url (zenith.tech/stas/mystore/snap1)
+--snapshot snap: init from the snapshot. Snap is a name or URL (zenith.tech/stas/mystore/snap1)
 
---cow: initialize Copy-on-Write data directory on top of some snapshot (makes sense if it is a snapshot of currently running database)
+--cow: initialize Copy-on-Write data directory on top of some snapshot (makes sense if it is a snapshot of currently running a database)
 
 **zenith pg destroy**
 
@@ -89,16 +89,16 @@ my_pg:
 
 **zenith pg start-rest/graphql** pgdata
 
-Starts REST/GraphQL proxy on top of postgres master. Not really sure we should do that, just an idea.
+Starts REST/GraphQL proxy on top of postgres master. Not sure we should do that, just an idea.
 
 
 ## snapshot
 
-Snapshot creation is cheap -- no actual data is copied, we just start retaining old pages. Snapshot size means amount of retained data, not all data.
+Snapshot creation is cheap -- no actual data is copied, we just start retaining old pages. Snapshot size means the amount of retained data, not all data.
 
 **zenith snapshot create** pgdata_name@snap_name
 
-Creates new snapshot in the same storage where pgdata_name exists.
+Creates a new snapshot in the same storage where pgdata_name exists.
 
 **zenith snapshot move** --to new_storage_name pgdata_name@snap_name
 
@@ -118,7 +118,7 @@ Starts read-only postgres over this snapshot and exports data in some format (pg
 
 **zenith snapshot diff** snap1 snap2
 
-Shows size of data changed between two snapshots. We also may provide options to diff schema / data in tables. In order to do that start temp readonly postgreses.
+Shows size of data changed between two snapshots. We also may provide options to diff schema / data in tables. To do that start temp read only postgreses.
 
 **zenith snapshot destroy**
 
@@ -134,7 +134,7 @@ XXX: any suggestions on a better name?
     --storage = storage_name
 
 **zenith pitr extract-snapshot** pitr_name --lsn xxx
-    creates snapshot out of some lsn in PITR area. Obtained snapshot may be manages with snapshot routines (move/send/export)
+    Creates a snapshot out of some lsn in PITR area. The obtained snapshot may be managed with snapshot routines (move/send/export)
 
 **zenith pitr gc** pitr_name
     Force garbage collection on some PITR area.
@@ -146,4 +146,4 @@ XXX: any suggestions on a better name?
 
 ## console
 
-**zenith console** opens browser targeted at web console with more or less same functionality as described here.
+**zenith console** opens browser targeted at web console with the more or less same functionality as described here.
