@@ -2,10 +2,11 @@
 
 Zenith CLI as it is described here mostly resides on the same conceptual level as pg_ctl/initdb/pg_recvxlog/etc and replaces some of them in an opionated way. I would also suggest to bundle our patched postgres inside zenith distribution at least on the start.
 
+Most important concept here is a snapshot, which can be created/moved/sent/exported. Also we may start temporary read only postgres instanse over any local snapshot. More complex scenarious would consist of several basic operations over snapshots.
 
 ## storage
 
-Storage is either page service or s3. User may create a database in pagestore and create/move *snapshots* and *pirt regions* in both pagestore and s3. Storage is a concept similar to `git remote`. After installation I imagine two storages are available by default: local pagestore and zenith cloud pagestore.
+Storage is either pagestore or s3. User may create a database in a pagestore and create/move *snapshots* and *pirt regions* in both pagestore and s3. Storage is a concept similar to `git remote`. After installation I imagine two storages are available by default: local pagestore and zenith cloud pagestore.
 
 XXX: is there any better ideas on how to call pagestore? may be just zenith? zenith-smgr?
 
@@ -20,7 +21,7 @@ Show currently attached storages. For example:
 
 ```
 > zenith storage list
-NAME			USED    TYPE				OPTIONS
+NAME            USED    TYPE                OPTIONS
 local           5.1G    pagestore-local
 local.compr     20.4G   pagestore-local     comression=on
 zcloud          60G     pagestore-remote
@@ -51,38 +52,38 @@ Creates (initializes) new data directory in a given storage and starts postgres.
 
 **zenith pg start** [--replica] pgdata
 Start postgres with proper extensions preloaded/installed.
-	
+    
 **zenith pg stop** pg_id
 
 **zenith pg list**
 
 ```
-ID					PGDATA		USED	STORAGE			ENDPOINT
-master@my_pg		my_pg		5.1G	local			localhost:5432
-replica-1@my_pg											localhost:5433
-replica-2@my_pg											localhost:5434
-master@my_pg2		my_pg2		3.2G	local.compr		localhost:5435
--					my_pg3		9.2G    local.compr		-
+ID                   PGDATA        USED    STORAGE            ENDPOINT
+master@my_pg         my_pg         5.1G    local              localhost:5432
+replica-1@my_pg                                               localhost:5433
+replica-2@my_pg                                               localhost:5434
+master@my_pg2        my_pg2        3.2G    local.compr        localhost:5435
+-                    my_pg3        9.2G    local.compr        -
 ```
 
 **zenith pg show**
 
 ```
 my_pg:
-	storage: local
+    storage: local
     space used on local: 5.1G
     space used on all storages: 15.1G
     snapshots:
-    	on local:
-        	snap1: 1G
-        	snap2: 1G
-    	on zcloud:
+        on local:
+            snap1: 1G
+            snap2: 1G
+        on zcloud:
             snap2: 1G
         on s3tank:
             snap5: 2G
     pitr:
         on s3tank:
-        	pitr_one_month: 45G
+            pitr_one_month: 45G
 
 ```
 
@@ -128,15 +129,17 @@ Pitr represents wal stream and ttl policy for that stream
 XXX: any suggestions on a better name?
 
 **zenith pitr create** name
-	--ttl = inf | period
+    --ttl = inf | period
     --size-limit = inf | limit
     --storage = storage_name
 
 **zenith pitr extract-snapshot** pitr_name --lsn xxx
-	creates snapshot out of some lsn in PITR area. Obtained snapshot may be manages with snapshot routines (move/send/export)
+    creates snapshot out of some lsn in PITR area. Obtained snapshot may be manages with snapshot routines (move/send/export)
 
 **zenith pitr gc** pitr_name
-	Force garbage collection on some PITR area.
+    Force garbage collection on some PITR area.
+
+**zenith pitr list**
 
 **zenith pitr destroy**
 
