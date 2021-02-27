@@ -132,7 +132,9 @@ XXX: any suggestions on a better name?
 **zenith pitr create** name
 
 --ttl = inf | period
+
 --size-limit = inf | limit
+
 --storage = storage_name
 
 **zenith pitr extract-snapshot** pitr_name --lsn xxx
