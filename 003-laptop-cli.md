@@ -51,6 +51,7 @@ Creates (initializes) new data directory in given storage and starts postgres. I
 **zenith pg destroy**
 
 **zenith pg start** [--replica] pgdata
+
 Start postgres with proper extensions preloaded/installed.
     
 **zenith pg stop** pg_id
@@ -129,15 +130,18 @@ Pitr represents wal stream and ttl policy for that stream
 XXX: any suggestions on a better name?
 
 **zenith pitr create** name
-    --ttl = inf | period
-    --size-limit = inf | limit
-    --storage = storage_name
+
+--ttl = inf | period
+--size-limit = inf | limit
+--storage = storage_name
 
 **zenith pitr extract-snapshot** pitr_name --lsn xxx
-    Creates a snapshot out of some lsn in PITR area. The obtained snapshot may be managed with snapshot routines (move/send/export)
+
+Creates a snapshot out of some lsn in PITR area. The obtained snapshot may be managed with snapshot routines (move/send/export)
 
 **zenith pitr gc** pitr_name
-    Force garbage collection on some PITR area.
+
+Force garbage collection on some PITR area.
 
 **zenith pitr list**
 
@@ -146,4 +150,6 @@ XXX: any suggestions on a better name?
 
 ## console
 
-**zenith console** opens browser targeted at web console with the more or less same functionality as described here.
+**zenith console**
+
+Opens browser targeted at web console with the more or less same functionality as described here.
