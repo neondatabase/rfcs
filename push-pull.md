@@ -29,22 +29,22 @@ Exact mechanics would be slightly different in the following situations:
 
 1) Destination branch does not exist.
 
-That is the simplest scenario. We can just create an empty branch (or timeline in internal terminology) and transfer all the pages/records that we have in our timeline. Right now each timeline is quite independent of other timelines so I suggest skipping any checks that there is a common ancestor and just fill it with data. Later when CoW timelines will land to the pageserver we may add that check and decide whether this timeline belongs to this pageserver repository or not [*].
+    That is the simplest scenario. We can just create an empty branch (or timeline in internal terminology) and transfer all the pages/records that we have in our timeline. Right now each timeline is quite independent of other timelines so I suggest skipping any checks that there is a common ancestor and just fill it with data. Later when CoW timelines will land to the pageserver we may add that check and decide whether this timeline belongs to this pageserver repository or not [*].
 
-The exact mechanics may be the following:
+    The exact mechanics may be the following:
 
-* CLI asks local pageserver to perform push and hands over connection uri: `perform_push <branch_name> <uri>`.
-* local pageserver connects to the remote pageserver and runs `branch_push <branch_name> <timetine_id>`
-    Handler for branch_create would create destination timeline and switch connection to copyboth mode.
-* Sending pageserver may start iterator on that timeline and send all the records as copy messages.
+    * CLI asks local pageserver to perform push and hands over connection uri: `perform_push <branch_name> <uri>`.
+    * local pageserver connects to the remote pageserver and runs `branch_push <branch_name> <timetine_id>`
+        Handler for branch_create would create destination timeline and switch connection to copyboth mode.
+    * Sending pageserver may start iterator on that timeline and send all the records as copy messages.
 
 2) Destination branch exists and latest_valid_lsn is less than ours.
 
-In this case, we need to send missing records. To do that we need to find all pages that were changed since that remote LSN. Right now we don't have any tracking mechanism for that, so let's just iterate over all records and send ones that are newer than remote LSN. Later we probably should add a sparse bitmap that would track changed pages to avoid full scan.
+    In this case, we need to send missing records. To do that we need to find all pages that were changed since that remote LSN. Right now we don't have any tracking mechanism for that, so let's just iterate over all records and send ones that are newer than remote LSN. Later we probably should add a sparse bitmap that would track changed pages to avoid full scan.
 
 3) Destination branch exists and latest_valid_lsn is bigger than ours.
 
-In this case, we can't push to that branch. We can only pull.
+    In this case, we can't push to that branch. We can only pull.
 
 ### Pulling branch
 
