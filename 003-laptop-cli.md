@@ -16,7 +16,6 @@ The most important concept here is a snapshot, which can be created/pushed/pulle
 > zenith pg list
 ID            PGDATA        USED    STORAGE            ENDPOINT
 primary1      pgdata1       0G      zenith-local       localhost:5432
->
 ```
 
 ## Import standalone postgres to zenith
@@ -37,7 +36,6 @@ primary1      pgdata1       5G      zenith-local       localhost:5432
 
 > zenith snapshot destroy oldpg
 Ok
-> 
 ```
 
 Also, we may start snapshot import implicitly by looking at snapshot schema
@@ -55,6 +53,13 @@ Since we may export the whole snapshot as one big file (tar of basebackup, maybe
 
 ```
 > zenith pg create --snapshot http://learn-postgres.com/movies_db.zenith movies
+```
+
+## Create snapshot and push it to the cloud
+
+```
+> zenith snapshot create pgdata1@snap1
+> zenith snapshot push --to ssh://stas@zenith.tech pgdata1@snap1
 ```
 
 ## Rollback database to the snapshot
