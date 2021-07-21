@@ -133,3 +133,10 @@ It is also important to be able to load metadata quickly since it would be one o
 2) It makes sense to keep ToC at the beginning of the file to avoid extra seeks to locate it. Doesn't matter too much with the local files but matters on S3 -- if we are accessing a lot of ~1Gb files with the size of metadata ~ 1Mb then the time to transfer this metadata would be comparable with access latency itself (which is about a half of a second). So by slurping metadata with one read of file header instead of N reads we can improve the speed of page server start by this N factor.
 
 I think both of that optimizations can be done later, but that is something to keep in mind when we are designing our storage serialization routines.
+
+Also, there were some discussions about how to embed WAL in incremental snapshots. So far following ideas were mentioned:
+1. snapshot lsn=200, includes WAL in range 200-300
+2. snapshot lsn=200, includes WAL in range 100-200
+3. data snapshots are separated from WAL snapshots
+
+Both options 2 and 3 look good. I'm inclined towards option 3 as it would allow us to apply different S3 pushdown strategies for data and WAL files (e.g. we may keep data snapshot until the next full snapshot, but we may push WAL snapshot to S3 just when they appeared if there are no replicas).
