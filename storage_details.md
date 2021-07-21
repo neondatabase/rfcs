@@ -71,6 +71,8 @@ I can think of the following options here:
 
 I think it is okay to start with table segments granularity and just check how we will perform in cases of lots of small tables and check is there any way besides c) to deal with it.
 
+Both PageStore and WalStore should be "sharded" by this granularity level.
+
 ## Security
 
 We can generate different IAM keys for each tenant and potentially share them with users (in read-only mode?) or even allow users to provide their S3 buckets credentials.
