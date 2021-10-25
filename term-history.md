@@ -139,3 +139,9 @@ pros/cons:
 + adds some observability at safekeepers
 
 - complexity, but not that much
+
+
+# Misc
+
+- During model checking I did truncation on first locally non existent or
+  different record -- analogue of 'memcmp' variant described above.
