@@ -4,7 +4,7 @@ Here I tried to describe the current state of thinking about our storage subsyst
 
 ## Overview
 
-![storage](images/storage.jpeg)
+![storage](../images/storage.jpeg)
 
 ### MemStore
 
