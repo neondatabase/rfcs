@@ -1,0 +1,22 @@
+
+sequenceDiagram
+    autonumber
+    actor P as User's postgres client
+    participant Compute
+    participant Safekeepers
+    participant Pageserver
+
+    P->>Compute: run query that extends relation
+    note right of Compute: checks the max cluster size limit
+    opt if current size is above limit
+        Compute->>P: return error
+    end
+    Compute->>Safekeepers: send WAL
+    note right of Safekeepers: quorum saves WAL
+    Safekeepers->>Compute: acknowledge WAL sync
+    Compute->>P: commit approved
+    Safekeepers->>Pageserver: send WAL
+    note right of Pageserver: digests WAL, updates current size
+    Pageserver->>Safekeepers: send feedback
+    Safekeepers->>Compute: pass on feedback
+    note right of Compute: updates current size
