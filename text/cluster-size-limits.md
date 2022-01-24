@@ -72,3 +72,13 @@ It would be nice to allow manual VACUUM and VACUUM FULL to bypass the check too,
     One of the options is to update the counter locally for such operations, while pageserver lags.
     
 2. How to distinguish VACUUM and VACUUM FULL operations to allow them even if limit is reached?
+
+
+### **Security implications**
+
+We treat compute as untrusted component, that’s why we try to isolate it with secure container runtime or a VM.
+Malicious user may change the `zenith.max_cluster_size`, so we need extra size limit check on the safekeeper's side.
+
+If `max_timeline_size` limit is reached on safekeeper, it means that compute node is compromised
+so treat this as a hard limit and set this higher than `zenith.max_cluster_size`.
+Safekeeper gets `current_timeline_size` from pageserver's feedback, so it will lag a little bit, but it's ok.
