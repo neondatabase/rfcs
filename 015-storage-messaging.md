@@ -34,6 +34,11 @@ adds either etcd or console as a storage dependency
 
 ## Possible implementation: custom message broker in the console
 
+We've decided to go with an etcd approach instead of the message broker.
+
+<details closed>
+<summary>Original suggestion</summary>
+<br>
 We can add a Grpc service in the console that acts as a message broker since the console knows the addresses of all the components. The broker can ignore the payload and only redirect messages. So, for example, each safekeeper may send a message to the peering safekeepers or to the pageserver responsible for a given timeline.
 
 Message format could be `{sender, destination, payload}`.
@@ -85,8 +90,10 @@ sk_1 <-> |                | <-> pserver_1
 ...      | Console broker |     ...
 sk_n <-> |________________| <-> pserver_m
 ```
+</details>
 
-## Proposed implementation: etcd state store
+
+## Implementation: etcd state store
 
 Alternatively, we can set up `etcd` and maintain the following data structure in it:
 
@@ -112,6 +119,32 @@ As etcd doesn't support field updates in the nested objects that translates to t
 ```
 
 Each storage node can subscribe to the relevant sets of keys and maintain a local view of that structure. So in terms of the data flow, everything is the same as in the previous approach. Still, we can avoid implementing the message broker and prevent runtime storage dependency on a console.
+
+### Safekeeper address discovery
+
+During the startup safekeeper should publish the address he is listening on as the part of `{"sk_#{sk_id}" => ip_address}`. Then the pageserver can resolve `sk_#{sk_id}` to the actual address. This way it would work both locally and in the cloud setup. Safekeeper should have `--advertised-address` CLI option so that we can listen on e.g. 0.0.0.0 but advertize something more useful.
+
+### Safekeeper behavior
+
+For each timeline safekeeper periodically broadcasts `compute_#{tenant}_#{timeline}/safekeepers/sk_#{sk_id}/*` fields. It subscribes to changes of `compute_#{tenant}_#{timeline}` -- that way safekeeper will have an information about peering safekeepers.
+That amount of information is enough to properly trim WAL. To decide on who is pushing the data to S3 safekeeper may use etcd leases or broadcast a timestamp and hence track who is alive.
+
+### Pageserver behavior
+
+Pageserver subscribes to `compute_#{tenant}_#{timeline}` for each tenant it owns. With that info, pageserver can maintain a view of the safekeepers state, connect to a random one, and detect the moments (e.g., one the safekeepers is not making progress or down) when it needs to reconnect to another safekeeper. Pageserver should resolve exact IP addresses through the console, e.g., exchange `#sk_#{sk_id}` to `4.5.6.7:6400`.
+
+Pageserver connection to the safekeeper can be triggered by the state change `compute_connected: false -> true`. With that, we don't need "call me maybe" anymore.
+
+As an alternative to compute_connected, we can track timestamp of the latest message arrived to safekeeper from compute. Usually compute broadcasts KeepAlive to all safekeepers every second, so it'll be updated every second when connection is ok. Then the connection can be considered down when this timestamp isn't updated for a several seconds.
+
+This will help to faster detect issues with safekeeper (and switch to another) in the following cases:
+
+      when compute failed but TCP connection stays alive until timeout (usually about a minute)
+      when safekeeper failed and didn't set compute_connected to false
+
+Another way to deal with [2] is to process (write_lsn, commit_lsn, compute_connected) as a KeepAlive on the pageserver side and detect issues when sk_id don't send anything for some time. This way is fully compliant to this RFC.
+
+Also, we don't have a "peer address amnesia" problem as in the gossip approach (with gossip, after a simultaneous reboot, safekeepers wouldn't know each other addresses until the next compute connection).
 
 ### Interactions
 
