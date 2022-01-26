@@ -6,7 +6,7 @@ Cluster size limits
 One of the resource consumption limits for free-tier users is a cluster size limit.
 
 To enforce it, we need to calculate the timeline size and check if the limit is reached before relation create/extend operations.
-If the limit is reached, the query must fail some meaningful error/warning.
+If the limit is reached, the query must fail with some meaningful error/warning.
 We may want to exempt some operations from the quota to allow users to free space to fit back into the limit.
 
 Stateless compute node where the validation is performed is separate from the storage where the usage can be calculated, 
@@ -21,36 +21,37 @@ so we don’t want to give users access to the functionality that we don’t thi
 
 ## Components
 
-pageserver - calculate size consumed by a timeline, add it into feedback message.
-safekeeper - pass feedback message from pageserver to compute.
-compute - receive feedback message, enforce size limit based on GUC `zenith.max_cluster_size`.
-console - set and update `zenith.max_cluster_size setting`
+* pageserver - calculate size consumed by a timeline, add it into feedback message.
+* safekeeper - pass feedback message from pageserver to compute.
+* compute - receive feedback message, enforce size limit based on GUC `zenith.max_cluster_size`.
+* console - set and update `zenith.max_cluster_size setting`
 
 ## Proposed implementation
 
-First of all, it's necessary to define timeline size. Options are:
+First of all, it's necessary to define timeline size.
 
-1. Count all data, including SLRUs. (not including WAL)
+Current approach is to count all data, including SLRUs. (not including WAL)
 Here we think of it as of a physical disk underneath postgres cluster.
 This is how `LOGICAL_TIMELINE_SIZE` metric is implemented in pageserver right now and the draft PR uses it.
 
-2. Count only relation data. As in pg_database_size().
-
-This approach is more user-friendly, because it is the data that is really affected by user.
+Alternatively we could count only relation data. As in pg_database_size().
+This approach is somewhat more user-friendly, because it is the data that is really affected by user.
+On the other hand, it puts us into weaker position in comparison with other services, i.e. RDS.
 To implement it, we will need to refactor timeline_size counter, or rather add another counter. 
-I suggest to use this approach.
-
 
 Timeline size is updated during wal digestion, it is not versioned and is valid at the last_received_lsn moment.
 Then this size should be reported to compute node.
 
 current_instance_size value is included into walreceiver's custom feedback message: `ZenithFeedback`
 
+If limit is soon to be reached, warning message is added to the feedback.
+
 (PR about protocol changes in review https://github.com/zenithdb/zenith/pull/1037).
 
 This message is received by safekeeper and propagated to compute node as a part of `AppendResponse`.
 
-Finally, when compute node receives the `current_instance_size` from safekeeper (or from pageserver directly), it updates the global variable.
+Finally, when compute node receives the `current_instance_size` from safekeeper (or from pageserver directly), it updates the global variable
+and logs received warning, if any.
 
 And then every zenith_extend() operation checks if limit is reached `(current_instance_size > zenith.max_cluster_size)` and throws `ERRCODE_DISK_FULL` error if so.
 (see Postgres error codes [https://www.postgresql.org/docs/devel/errcodes-appendix.html](https://www.postgresql.org/docs/devel/errcodes-appendix.html))
@@ -67,18 +68,21 @@ It would be nice to allow manual VACUUM and VACUUM FULL to bypass the check too,
     
     So transactions that happen in this lsn range may cause limit overflow. Especially, operations that generate (i.e CREATE DATABASE) or free (i.e. TRUNCATE) a lot of data pages while generating a small amount of WAL. Are there other operations like this?
     
-    TODO: figure out how to handle them.
-    
-    One of the options is to update the counter locally for such operations, while pageserver lags.
-    
+    Currently, CREATE DATABASE operations are restricted in console. So this is not an issue.
+
 2. How to distinguish VACUUM and VACUUM FULL operations to allow them even if limit is reached?
 
 
 ### **Security implications**
 
 We treat compute as untrusted component, that’s why we try to isolate it with secure container runtime or a VM.
-Malicious user may change the `zenith.max_cluster_size`, so we need extra size limit check on the safekeeper's side.
+Malicious user may change the `zenith.max_cluster_size`, so we need extra size limit check on the pageserver's side.
 
-If `max_timeline_size` limit is reached on safekeeper, it means that compute node is compromised
-so treat this as a hard limit and set this higher than `zenith.max_cluster_size`.
-Safekeeper gets `current_timeline_size` from pageserver's feedback, so it will lag a little bit, but it's ok.
+If `max_cluster_size` limit is reached or almost reached, warning message will be send via feedback.
+If compute node is compromised, this warning of course could be ignored. To cover this case, we also monitor compute node size in console.
+
+
+`max_cluster_size` on pageserver must match the setting on compute node.
+For the first version I suggest using global setting in pageserver config.
+To allow different limits for different clients, we need to implement per-timeline config on pageserver.
+
