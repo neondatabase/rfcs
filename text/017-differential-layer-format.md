@@ -1,7 +1,40 @@
 Differential Layer
 ==================
 
-## Current status
+Created on 2022-01-18
+Type: for approval
+
+Motivation
+----------
+
+Our current layer formats use more resources than we would like them to use.
+Most significant is the Delta layer format, which has >28 bytes overhead
+per page version; and has O(m log(n)) page@LSN worst-case lookup complexity.
+
+Summary
+-------
+
+This RFC describes implementation details for a new implementation for the Layer
+interface that targets to replace the Delta layer, taking into account the
+concerns raised in RFC 016.
+
+Non-goals
+---------
+
+This RFC does not plan to address integration of LSM-related structures into
+the layer format, nor does it plan to change any fundamentals of the GC or
+checkpoint logic.
+
+Impacted Components
+-------------------
+The PageServer will be likely be the only impacted active component; with
+special areas of interest being the Layer interface, checkpointing and garbage
+collection. Any potential catalog / metadata service / layer index might also
+need updates to support the (features of the) new layer format, if and when
+this becomes relevant.
+
+Current status
+--------------
 
 Currently, there are two layer formats: Delta and Image. 
 
@@ -11,7 +44,8 @@ the pages at a certain LSN.
 
 The Differential Layer format tries to improve and replace the Delta layer format.
 
-## Problems with Delta layer; and improvements
+Problems with Delta layer; and improvements
+-------------------------------------------
 
 ### Page Version Branches
 As mentioned in "Storage and file formats; Structures", storing page versions
@@ -27,32 +61,32 @@ pointer points to. This allows for compacter storage of the actual branches,
 at the cost of some extra data in the
 
 Not all branches will describe multiple page versions: It is indeed possible
-that a page will be updated only once during a checkpoint.
+that a page will be updated only once during a checkpoint. In that case, it is
+quite wasteful to store the metadata of '0 page versions'.
 
-In that case, it
-is quite wasteful to store the metadata of '0 page versions'
+Distinguisable branch types could include, amongst others:
 
 - FPI, 0 revisions
-- will-init WAL record, 0 revisions
 - FPI-initiated branch, N WAL records depending on that FPI
-- WAL-record initiated branch, N WAL records depending on that WAL record
-- ...
+- will-init WAL record, 0 revisions
+- will-init WAL record initiated branch, followed by N WAL records depending on that WAL record
+- ... potential other types / physical representations.
+
+### Branch "tail" representation
 
 In the physical format, because the LSNs of the WAL records are sorted and stored
-in increasing order, we could apply compression to this array to reduce the
-storage overhead of the full branch structure.
+in increasing order, we can apply differential encoding and compression to this
+array to reduce the storage overhead of these WAL records.
 
 Additionally, because the length of the WAL record is stored in it's header, we
 don't actually need to store the length of the WAL record in the branch structure;
-we can read it directly from the header, saving 4 bytes per WAL record.
+we can read it directly from the record header, saving 4 bytes per WAL record.
 
-With LSN array compression and the emission of the WAL record length also being
-stored outside the WAL record, we can reduce the storage overhead of non-FPI WAL
+With LSN array compression and the emission of the WAL record length stored 
+outside the WAL record, we can reduce the storage overhead of non-FPI WAL
 records from 28 bytes per record down to less than 8 bytes per record, with an
 expected value of ~ 4 bytes (depending on how often a page is modified; more
 frequent / less noizy WAL record generation = lower overhead).
-
-
 
 ### Page versions array
 The Delta layer uses an in-memory sorted array of <lsn, pageversion> pairs to
@@ -98,8 +132,6 @@ want to store in the BranchPtr, and what data we want to store locally in the
 Branch. Either way, the overhead of one branch in the page versions array is
 16 bytes.
 
-
-
 ### Page index
 The Delta layer does not use an index to check if a page exists in the Layer, but
 instead uses the combined index for on (page, pageversion). This means that finding
@@ -128,16 +160,17 @@ These improvements mean that the search for some old page version goes from
 
 ### Segment size
 The segment size of the current layer formats is very small; which means that
-the number of layers is relatively high. As each layer has some constant
-overhead, it should be beneficial to increase layer size to something in the
-order of gigabytes, instead of megabytes.
+the number of layers is relatively high, which increases the pressure on GC
+and FS operations. As each layer has some constant overhead, it should be
+beneficial to increase layer size to something in the order of gigabytes,
+instead of megabytes.
 
 The Differential layer format is designed for segment sizes of up to 8GiB,
 almost 1000 times larger than the current segment size. 
 
 
-### Write amplification
+### Read amplification
 The Delta layer requires frequent Image layers to prevent the high overhead
 of old page retrieval. The Differential layer does not require this, and thus it
-allows us to decreases the write amplification for sparsely updated layers
+allows us to decreases the read amplification for sparsely updated layers
 significantly.
