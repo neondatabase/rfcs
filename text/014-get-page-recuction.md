@@ -16,7 +16,7 @@ These two use cases are enough to justify our desire to keep our options open.
 ## 3. Definitions
 The following terms are used in section 4.
 
-Definition: Let `hot_wal_size` be a very conservative upper bound on how much our read replicas can lag behind, in terms of WAL size. To allow for ~30 sec lag, `hot_wal_size` should be about 15-200GB. These numbers are derived from theoretical upper bounds on write speed at safekeepers, which limit our write troughput. For now the exact value doesn't matter, since this is a workable range for the sake of this document.
+Definition: Let `hot_wal_size` be a very conservative upper bound on how much our read replicas can lag behind, in terms of WAL size. One way to derive it is `hot_wal_size = max_lag_seconds * safekeeper_ssd_troughput`. Example: if we (hypothetically) want to allow 10 seconds of lag, and safekeepers nodes are writing 1 GB/s on 8 SSDs, then `hot_wal_size = 80 GB`.
 
 Definition: A page version is **hot** if it has been modified within the last `hot_wal_size` gigabytes of wal, and **cold** otherwise.
 
