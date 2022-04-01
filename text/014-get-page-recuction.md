@@ -44,16 +44,7 @@ By Lemma 1, we can split queries into two kinds, and match on the kind of query 
 a) By Lemma 2, we can solve kind (a) with just some memory overhead (that I'm sure we can afford).
 b) We take the WAL stream that lags `hot_wal_size` behind head, and feed it into our system for answering GetPage@LatestLSN (that we assumed exists). To answer the query of kind (b), we directly query this system.
 
-## 5. More nuance on layered timmelines
-Our layered timeline additionally helps with branching and cloud storage. I want to address these two problems in a non-layered repo, since my solution here doesn't specifically require layers (but it could).
-
-### 5.1 Branching
-Currently a branch holds up garbage collection of old layers, effectively bloating the SSD with a full database image that can't be deleted. If we don't have layers to rely on, we can just phyiscally copy whatever SSD files we have to support our branches, and that will have equivalent costs. To make sure that branch **creation** is fast, we can use copy-on-write semantics on these files.
-
-### 5.2 Cloud storage
-The assumed GetPage@LatestLSN solution is assumed to come with its own durability guarantees. The Microsoft pageservers also store to cloud storage.
-
-## 6. Conclusion
+## 5. Conclusion
 If my reasoning is correct, it means we have many opportunities to simplify our designs and stop worrying about irrelevant problems (layer_map, PageReconstructData from disk, etc.) I'm not suggesting we build anything right now, just trying to simplify how we think, and learn something if I'm wrong.
 
 ## 6. References
